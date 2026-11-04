@@ -231,29 +231,49 @@
         
         // Load via Google Sheet / Online CSV
         async function fetchGoogleSheet() {
-            showLoading("กำลังดาวน์โหลดและประมวลผลข้อมูล...");
+            showLoading("กำลังดาวน์โหลดและประมวลผลข้อมูลจาก Google Sheet...");
             
-            // 1. เตรียม URL ไว้หลายแบบ ป้องกันปัญหารันใน Preview (blob:) ไม่ได้
-            const urlsToTry = [
-                'https://docs.google.com/spreadsheets/d/e/2PACX-1vSI1zG9WzeYpoVgOizaMga0zAKsGNRTjuZPZ80q3Yv4nHH9GmZ_PS6no7dGO0e6CuxpVcHuapC5LHE-/pub?output=csv'
-            ];
+            // =====================================================================
+            // 📌 1. วิธีดึงข้อมูลอัตโนมัติจาก Google Sheet ของคุณ
+            // =====================================================================
+            // วิธีเอาลิงก์:
+            // 1. ไปที่ไฟล์ Google Sheet ของคุณ
+            // 2. กดที่เมนู File (ไฟล์) > Share (แชร์) > Publish to web (เผยแพร่ทางเว็บ)
+            // 3. เปลี่ยนตัวเลือกจาก "หน้าเว็บ (Web page)" เป็น "ค่าที่คั่นด้วยจุลภาค (.csv)"
+            // 4. กด Publish (เผยแพร่) แล้วคัดลอกลิงก์ที่ได้มาวางในเครื่องหมายคำพูดด้านล่างนี้
+            
+            const googleSheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSI1zG9WzeYpoVgOizaMga0zAKsGNRTjuZPZ80q3Yv4nHH9GmZ_PS6no7dGO0e6CuxpVcHuapC5LHE-/pub?output=csv
+                '; 
+            
+            // 📌 2. ลิงก์สำรอง (เอาไว้ดึงข้อมูลเดิมจาก GitHub หากยังไม่ได้ใส่ลิงก์ Google Sheet)
+            const fallbackURL = 'https://raw.githubusercontent.com/mawinsad/-01/main/final69_covid65_3.csv';
+
+            const urlsToTry = [];
+            
+            // ถ้ามีการนำลิงก์ Google sheet มาใส่แทนที่ข้อความภาษาไทยแล้ว ให้ลองใช้ลิงก์นั้นก่อน
+            if (googleSheetURL && !googleSheetURL.includes('ลิงก์_GOOGLE_SHEET_CSV')) {
+                urlsToTry.push(googleSheetURL);
+            }
+            // ใส่ลิงก์สำรองจาก GitHub
+            urlsToTry.push(fallbackURL);
 
             let csvText = null;
 
-            // 2. ลองใช้ fetch ทีละ URL (ใช้ fetch จะจัดการ Error ใน Preview ได้ดีกว่า XHR ของ PapaParse)
+            // พยายามโหลดข้อมูลทีละลิงก์
             for (let url of urlsToTry) {
                 try {
                     const response = await fetch(url);
                     if (response.ok) {
                         csvText = await response.text();
+                        console.log("ดาวน์โหลดข้อมูลสำเร็จจาก:", url);
                         break;
                     }
                 } catch (e) {
-                    console.warn(`ไม่สามารถดึงข้อมูลจาก ${url} ได้ (เป็นเรื่องปกติในหน้า Preview)`);
+                    console.warn(`ไม่สามารถดึงข้อมูลจาก ${url} ได้ (มักเกิดในโหมด Preview)`);
                 }
             }
 
-            // 3. ถ้าดึงไฟล์ออนไลน์/ไฟล์ข้างๆ ไม่สำเร็จ (มักจะเกิดขึ้นในหน้า Preview นี้)
+            // ถ้าดึงไฟล์ออนไลน์ไม่สำเร็จ (มักจะเกิดขึ้นในหน้า Preview นี้ที่บล็อก Fetch)
             if (!csvText) {
                 hideLoading();
                 const fallbackElement = document.getElementById('fallbackUpload');
@@ -273,7 +293,7 @@
                         });
                     });
                 }
-                alert("ระบบดึงข้อมูลอัตโนมัติไม่ได้เนื่องจากข้อจำกัดของหน้า Preview 😅 \n\nกรุณากด 'Choose File' ในกล่องสีเหลืองด้านบน แล้วเลือกไฟล์ final69_15.csv ด้วยตนเองเพื่อทดสอบครับ\n(แต่เมื่ออัพโหลดขึ้น GitHub Pages โค้ดนี้จะทำงานอัตโนมัติทันทีครับ)");
+                alert("ระบบดึงข้อมูลอัตโนมัติไม่ได้เนื่องจากข้อจำกัดของบางเว็บบราวเซอร์ 😅 \n\nกรุณากด 'Choose File' ในกล่องสีเหลืองด้านบน แล้วเลือกไฟล์ CSV ด้วยตนเองเพื่อทดสอบครับ\n(แต่เมื่ออัพโหลดเว็บนี้ขึ้น Host จริง โค้ดดึง Google Sheet จะทำงานอัตโนมัติ)");
                 return;
             }
 
@@ -294,7 +314,7 @@
         function processDataset(data) {
             if (!data || data.length === 0) {
                 hideLoading();
-                alert("ไม่พบข้อมูลในไฟล์");
+                alert("ไม่พบข้อมูลในไฟล์ หรือรูปแบบ CSV ไม่ถูกต้อง");
                 return;
             }
 
@@ -323,7 +343,7 @@
                     sex: sexCol ? (row[sexCol].trim() === 'ชาย' || row[sexCol].toLowerCase() === 'male' ? 'ชาย' : 
                                    row[sexCol].trim() === 'หญิง' || row[sexCol].toLowerCase() === 'female' ? 'หญิง' : 'ไม่ระบุ') : 'ไม่ระบุ'
                 };
-            }).filter(row => row.date !== 'ไม่ระบุ'); // Require at least date
+            }).filter(row => row.date !== 'ไม่ระบุ' && row.date !== ''); // Require at least date
 
             setupFilters();
             applyFilters();
@@ -375,7 +395,12 @@
             // Total
             document.getElementById('statTotal').innerText = filteredData.length.toLocaleString();
             
-            if (filteredData.length === 0) return;
+            if (filteredData.length === 0) {
+                document.getElementById('statAvgAge').innerText = '-';
+                document.getElementById('statTopProv').innerText = '-';
+                document.getElementById('statPeakDate').innerText = '-';
+                return;
+            }
 
             // Avg Age
             const validAges = filteredData.map(d => d.age).filter(a => a !== null && !isNaN(a));
@@ -385,14 +410,16 @@
             // Top Prov
             const provCounts = {};
             filteredData.forEach(d => { if(d.province !== 'ไม่ระบุ') provCounts[d.province] = (provCounts[d.province] || 0) + 1; });
-            const topProv = Object.keys(provCounts).sort((a,b) => provCounts[b] - provCounts[a])[0];
-            document.getElementById('statTopProv').innerText = topProv || '-';
+            const topProvKeys = Object.keys(provCounts);
+            const topProv = topProvKeys.length > 0 ? topProvKeys.sort((a,b) => provCounts[b] - provCounts[a])[0] : '-';
+            document.getElementById('statTopProv').innerText = topProv;
 
             // Peak Date
             const dateCounts = {};
             filteredData.forEach(d => { dateCounts[d.date] = (dateCounts[d.date] || 0) + 1; });
-            const peakDate = Object.keys(dateCounts).sort((a,b) => dateCounts[b] - dateCounts[a])[0];
-            document.getElementById('statPeakDate').innerText = peakDate || '-';
+            const dateKeys = Object.keys(dateCounts);
+            const peakDate = dateKeys.length > 0 ? dateKeys.sort((a,b) => dateCounts[b] - dateCounts[a])[0] : '-';
+            document.getElementById('statPeakDate').innerText = peakDate;
         }
 
         // --- Charts ---
@@ -403,22 +430,20 @@
             const dateCounts = {};
             filteredData.forEach(d => {
                 if (!d.date || d.date === 'ไม่ระบุ') return;
-                // simple date string standardization if needed
                 let dStr = String(d.date).split(' ')[0]; // remove time if exists
                 dateCounts[dStr] = (dateCounts[dStr] || 0) + 1;
             });
             
-            // แก้ไขปัญหาการเรียงวันที่ ให้รองรับทั้ง format แบบ YYYY-MM-DD และ DD/MM/YYYY
+            // การเรียงวันที่
             const sortedDates = Object.keys(dateCounts).sort((a,b) => {
                 let parseDate = (dateStr) => {
                     let parsed = new Date(dateStr);
                     if (!isNaN(parsed)) return parsed;
                     let parts = dateStr.split('/');
                     if (parts.length === 3) {
-                        // สมมติฐานว่าเป็นแบบ DD/MM/YYYY หรือ M/D/YYYY
                         return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
                     }
-                    return new Date(0); // fallback กรณีแปลงไม่ได้
+                    return new Date(0); 
                 };
                 return parseDate(a) - parseDate(b);
             });
@@ -549,12 +574,10 @@
             
             // Calculate province totals for Choropleth
             const provCases = {};
-            // Group cases by Province -> District for Spot Map
             const districtCases = {}; 
 
             filteredData.forEach(d => {
                 if (d.province && d.province !== 'ไม่ระบุ') {
-                    // Normalize standard TH names to match GeoJSON (basic handling)
                     let pName = d.province;
                     provCases[pName] = (provCases[pName] || 0) + 1;
                     
@@ -588,10 +611,8 @@
                     // Try exact match, fallback to contains logic
                     let cases = provCases[provName] || 0;
                     if (cases === 0) {
-                         // Some geojson use 'Bangkok Metropolis' or 'Krung Thep'
                          if (provName.includes('Bangkok') || provName.includes('Krung Thep')) cases = provCases['กรุงเทพมหานคร'] || 0;
                          else {
-                             // Try to find matching thai keys
                              let thKey = Object.keys(provCases).find(k => k.includes(provName) || provName.includes(k));
                              if(thKey) cases = provCases[thKey];
                          }
@@ -609,6 +630,7 @@
                 onEachFeature: function (feature, layer) {
                     let provName = feature.properties.name || feature.properties.NAME_1;
                     let cases = provCases[provName] || 0;
+                    if (cases === 0 && (provName.includes('Bangkok') || provName.includes('Krung Thep'))) cases = provCases['กรุงเทพมหานคร'] || 0;
                     layer.bindPopup(`<b>จังหวัด:</b> ${provName}<br/><b>ผู้ติดเชื้อ:</b> ${cases.toLocaleString()} ราย`);
                 }
             });
@@ -618,8 +640,6 @@
             // --- 2. Spot Map (อำเภอ) ---
             spotLayer.clearLayers();
             
-            // To simulate District points without exact district GeoJSON, 
-            // we find the center of the province from Choropleth and scatter district dots around it.
             let provCenters = {};
             choroplethLayer.eachLayer(layer => {
                 let bounds = layer.getBounds();
@@ -668,7 +688,6 @@
 
             // Adjust bounds
             if (filteredData.length > 0 && selProv !== 'all') {
-                // find selected layer bounds
                 let selectedLayer = null;
                 choroplethLayer.eachLayer(layer => {
                     let name = layer.feature.properties.name || layer.feature.properties.NAME_1;
