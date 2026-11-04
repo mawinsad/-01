@@ -234,8 +234,9 @@
             showLoading("กำลังดาวน์โหลดและประมวลผลข้อมูล...");
             
             // 1. เตรียม URL ไว้หลายแบบ ป้องกันปัญหารันใน Preview (blob:) ไม่ได้
-            // **การแก้ไขที่ 1:** เปลี่ยนชื่อไฟล์ให้ตรงกับโจทย์ "final69_15.csv"
+            // **เพิ่มลิงก์ Google Sheets ที่กำหนดเป็นแหล่งข้อมูลหลัก**
             const urlsToTry = [
+                'https://docs.google.com/spreadsheets/d/e/2PACX-1vQCgJ3pX060fB1UxHyZfXIKQSN88sdJTZuWCplKA2cvT8jrm8pZ-vGyIUZ2TC1VIrUo0hsXlHy8bX9h/pub?output=csv',
                 'final69_15.csv', 
                 'https://raw.githubusercontent.com/mawinsad/-01/main/final69_15.csv'
             ];
