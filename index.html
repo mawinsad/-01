@@ -92,12 +92,6 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-6">
         
-        <!-- Fallback Upload (Hidden by default, shows up if auto-fetch fails in Preview) -->
-        <div id="fallbackUpload" style="display: none;" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <label class="block text-sm font-semibold mb-2 text-yellow-800">⚠️ โหมดสำรอง: อัพโหลดไฟล์ CSV ด้วยตนเอง (สำหรับทดสอบในหน้า Preview)</label>
-            <input type="file" id="csvFileInput" accept=".csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-yellow-100 file:text-yellow-700 hover:file:bg-yellow-200"/>
-        </div>
-
         <!-- Controls & Inputs -->
         <div class="bg-white rounded-lg shadow p-4 mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             
@@ -231,64 +225,58 @@
         
         // Load via Google Sheet / Online CSV
         async function fetchGoogleSheet() {
-            showLoading("กำลังดาวน์โหลดและประมวลผลข้อมูล...");
+            showLoading("กำลังดาวน์โหลดข้อมูลจาก Google Sheets...");
             
-            // 1. เตรียม URL ไว้หลายแบบ ป้องกันปัญหารันใน Preview (blob:) ไม่ได้
-            const urlsToTry = [
-                'final69_covid65_3.csv', // ใช้เมื่อนำไปวางบน GitHub Pages จะอ่านไฟล์ข้างๆ
-                'https://raw.githubusercontent.com/mawinsad/-01/main/final69_covid65_3.csv' // สำรองสำหรับโหมด Preview (ถ้ามีไฟล์ในเว็บ)
-            ];
+            // ลิงก์ Google Sheets ของคุณ
+            const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSI1zG9WzeYpoVgOizaMga0zAKsGNRTjuZPZ80q3Yv4nHH9GmZ_PS6no7dGO0e6CuxpVcHuapC5LHE-/pub?output=csv';
 
-            let csvText = null;
-
-            // 2. ลองใช้ fetch ทีละ URL (ใช้ fetch จะจัดการ Error ใน Preview ได้ดีกว่า XHR ของ PapaParse)
-            for (let url of urlsToTry) {
-                try {
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        csvText = await response.text();
-                        break;
+            try {
+                // ใช้ fetch API แบบใหม่เพื่อแก้ปัญหา CORS Block จาก Google Sheets
+                const response = await fetch(sheetUrl);
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        if (results.data && results.data.length > 0) {
+                            // ถ้าดึงสำเร็จ ให้ซ่อนกล่องอัพโหลดสำรอง
+                            const fallbackElement = document.getElementById('fallbackUpload');
+                            if(fallbackElement) fallbackElement.style.display = 'none';
+                            
+                            processDataset(results.data);
+                        } else {
+                            showFallbackError();
+                        }
                     }
-                } catch (e) {
-                    console.warn(`ไม่สามารถดึงข้อมูลจาก ${url} ได้ (เป็นเรื่องปกติในหน้า Preview)`);
-                }
+                });
+            } catch (err) {
+                console.error("เกิดข้อผิดพลาดในการดึงข้อมูลด้วย fetch:", err);
+                showFallbackError();
             }
+        }
 
-            // 3. ถ้าดึงไฟล์ออนไลน์/ไฟล์ข้างๆ ไม่สำเร็จ (มักจะเกิดขึ้นในหน้า Preview นี้)
-            if (!csvText) {
-                hideLoading();
-                const fallbackElement = document.getElementById('fallbackUpload');
-                if (fallbackElement) {
-                    fallbackElement.style.display = 'block';
-                    document.getElementById('csvFileInput').addEventListener('change', function(e) {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        showLoading("กำลังอ่านไฟล์...");
-                        Papa.parse(file, {
-                            header: true,
-                            skipEmptyLines: true,
-                            complete: function(results) {
-                                fallbackElement.style.display = 'none'; // ซ่อนกล่องอัพโหลดเมื่อเสร็จ
-                                processDataset(results.data);
-                            }
-                        });
+        // กรณีดึงออนไลน์ไม่สำเร็จ
+        function showFallbackError() {
+            hideLoading();
+            const fallbackElement = document.getElementById('fallbackUpload');
+            if (fallbackElement) {
+                fallbackElement.style.display = 'block';
+                document.getElementById('csvFileInput').addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    showLoading("กำลังอ่านไฟล์สำรอง...");
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            fallbackElement.style.display = 'none';
+                            processDataset(results.data);
+                        }
                     });
-                }
-                alert("ระบบดึงข้อมูลอัตโนมัติไม่ได้เนื่องจากข้อจำกัดของหน้า Preview 😅 \n\nกรุณากด 'Choose File' ในกล่องสีเหลืองด้านบน แล้วเลือกไฟล์ final69_covid65_3.csv ด้วยตนเองเพื่อทดสอบครับ\n(แต่เมื่ออัพโหลดขึ้น GitHub Pages โค้ดนี้จะทำงานอัตโนมัติทันทีครับ)");
-                return;
+                });
             }
-
-            // 4. ถ้าดึงข้อมูลสำเร็จ ให้แปลงข้อมูล
-            Papa.parse(csvText, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    if (results.errors.length > 0) {
-                        console.warn("พบข้อผิดพลาดบางจุดในข้อมูล:", results.errors);
-                    }
-                    processDataset(results.data);
-                }
-            });
+            alert("⚠️ ไม่สามารถดึงข้อมูลจาก Google Sheets ได้อัตโนมัติ\n\nสาเหตุที่เป็นไปได้:\n1. ลิงก์ที่ใส่ยังไม่ได้เปิดเป็น 'สาธารณะ (Publish to web)'\n2. ข้อจำกัดด้านความปลอดภัยของเบราว์เซอร์ (CORS)\n\nระบบแสดงกล่องอัพโหลดสีเหลืองเพื่อให้คุณสามารถอัพโหลดไฟล์ CSV ทดสอบไปก่อนได้ครับ");
         }
 
         // Normalize dataset and standardize keys
